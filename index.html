@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>抽選ページ</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Arial", sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb, #a6c1ee);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+      text-align: center;
+    }
+
+    @keyframes gradient {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-top: 50px;
+      color: #fff;
+    }
+
+    #drawButton {
+      padding: 20px 40px;
+      font-size: 1.5em;
+      background-color: #ff6f61;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+      margin-top: 30px;
+    }
+
+    #drawButton:hover {
+      background-color: #e85a4f;
+    }
+
+    #result {
+      margin-top: 40px;
+      font-size: 1.2em;
+      color: #fff;
+    }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background-color: #fff;
+      opacity: 0.7;
+      animation: fall 3s linear infinite;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(100vh) rotateZ(360deg);
+        opacity: 0;
+      }
+    }
+
+    table {
+      margin: 30px auto;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 10px 20px;
+      border: 1px solid #ccc;
+    }
+
+    th {
+      background-color: #ff9a9e;
+      color: white;
+    }
+
+    td {
+      background-color: #fff5f5;
+    }
+  </style>
+</head>
+<body>
+  <h1>抽選ページ</h1>
+  <button id="drawButton">ボタンを押して抽選！（残り: <span id="remaining"></span>）</button>
+  <div id="result"></div>
+  <audio id="bgm" src="bgm.mp3"></audio>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxjesr5pFQVQ1DUN9u6Xk9tsJZnTzYzU85zXPSZfAtTU9dlErwCSqXQr4U-LtZ3emm_/exec";
+
+    async function fetchDraw() {
+      const pid = new URLSearchParams(window.location.search).get('pid');
+      if (!pid) {
+        document.getElementById("result").innerText = "IDが指定されていません。";
+        return;
+      }
+
+      const response = await fetch(`${API_URL}?pid=${pid}`);
+      const data = await response.json();
+
+      if (data.result === "win") {
+        showConfetti();
+        document.getElementById("result").innerHTML = `
+          <h2>🎉 おめでとうございます 🎉</h2>
+          <p>ID: <strong>${data.id}</strong></p>
+          <p>景品: <strong>${data.prize}</strong></p>
+        `;
+        document.getElementById("bgm").play();
+      } else if (data.result === "limit") {
+        document.getElementById("drawButton").innerText = "最終結果を表示！";
+        document.getElementById("drawButton").onclick = showWinners;
+      } else {
+        document.getElementById("result").innerText = "抽選に失敗しました。";
+      }
+
+      if (data.remaining !== undefined) {
+        document.getElementById("remaining").innerText = data.remaining;
+      }
+    }
+
+    function showConfetti() {
+      for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement("div");
+        confetti.classList.add("confetti");
+        confetti.style.left = `${Math.random() * 100}vw`;
+        confetti.style.top = `-10px`;
+        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
+        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 4000);
+      }
+    }
+
+    async function showWinners() {
+      const response = await fetch(`${API_URL}?mode=list`);
+      const data = await response.json();
+
+      let html = `
+        <h2>🎊 最終結果発表 🎊</h2>
+        <table>
+          <tr><th>ID</th><th>景品</th></tr>
+      `;
+      data.forEach(row => {
+        html += `<tr><td>${row.id}</td><td>${row.prize}</td></tr>`;
+      });
+      html += `</table>`;
+
+      document.getElementById("result").innerHTML = html;
+    }
+
+    document.getElementById("drawButton").addEventListener("click", fetchDraw);
+  </script>
+</body>
+</html>
